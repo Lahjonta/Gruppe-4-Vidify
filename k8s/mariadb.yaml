@@ -1,0 +1,83 @@
+#Begin: Configmap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mariadb-deployment-init-configmap
+data:
+  mariadb-init.sql: |
+    SET GLOBAL sql_mode = 'ANSI_QUOTES';
+
+    CREATE TABLE `songs` (
+      `song` VARCHAR(30) NOT NULL,
+      `link`  VARCHAR(5000),
+      `band` VARCHAR(50),
+      PRIMARY KEY (`song`)
+    );
+
+    CREATE TABLE `popular` (
+      `song` VARCHAR(30) NOT NULL,
+      `count` BIGINT DEFAULT 0,
+       PRIMARY KEY (`song`)
+    );
+
+
+    INSERT INTO songs (song, link, band) VALUES ('Empty', 'https://www.youtube.com/watch?v=rWJQPeIVJIA', 'Metric');
+    INSERT INTO songs (song, link, band) VALUES ('Breezeblocks', 'https://www.youtube.com/watch?v=rVeMiVU77wo', 'alt-J');
+    INSERT INTO songs (song, link, band) VALUES ('The Adults Are Talking', 'https://www.youtube.com/watch?v=ewOPQZZn4SY', 'The Strokes');
+    INSERT INTO songs (song, link, band) VALUES ('Square Hammer', 'https://www.youtube.com/watch?v=VqoyKzgkqR4', 'Ghost');
+    INSERT INTO songs (song, link, band) VALUES ('Circle With Me', 'https://www.youtube.com/watch?v=I0WzT0OJ-E0', 'Spiritbox');
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb-deployment
+  labels:
+    app: my-mariadb-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-mariadb
+  template:
+    metadata:
+      labels:
+        app: my-mariadb
+    spec:
+      # Mount the configmap volume
+      # This is an excerpt of deployment.spec.template.spec
+      volumes:
+        - name: init-volume
+          configMap:
+            name: mariadb-deployment-init-configmap
+      containers:
+        - name: my-mariadb
+          image: mariadb
+          volumeMounts:
+            - name: init-volume
+              mountPath: /docker-entrypoint-initdb.d/
+          # Set required environment variables to initialize the container
+          env:
+            - name: MARIADB_ROOT_PASSWORD
+              value: "mysecretpw"
+            - name: MARIADB_DATABASE
+              value: "popular"
+          ports:
+            - containerPort: 3306
+
+---
+#Begin: Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-mariadb-service
+spec:
+  selector:
+    app: my-mariadb
+  ports:
+    - name: mariadb-proto
+      protocol: TCP
+      port: 3306
+      targetPort: 3306
+#End: Service
