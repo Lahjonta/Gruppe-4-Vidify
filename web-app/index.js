@@ -5,9 +5,19 @@ const { Kafka } = require('kafkajs')
 const mariadb = require('mariadb')
 const MemcachePlus = require('memcache-plus')
 const express = require('express')
-
 const app = express()
+
+app.use(express.static('videos'));
 const cacheTimeSecs = 15
+
+app.use('/styles', express.static('styles', { 
+	setHeaders: (res, path) => {
+	  if (path.endsWith('.css')) {
+		res.type('text/css');
+	  }
+	}
+  }));
+  
 
 // -------------------------------------------------------
 // Command-line options (with sensible defaults)
@@ -153,24 +163,23 @@ function sendResponse(res, html, cachedResult) {
 			<meta charset="UTF-8">
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
 			<title>Vidify</title>
-			<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
+			<link rel="stylesheet" href="/styles/main.css">
 			<script>
 				function fetchRandomSongs() {
-					const songs = ['Empty', 'Breezeblocks', 'The Adults Are Talking', 'Square Hammer', 'Circle With Me']
+					const songs = ['Empty', 'Breezeblocks', 'The Adults Are Talking', 'Square Hammer', 'Circle With Me'];
 					const maxRepetitions = Math.floor(Math.random() * 200);
 					document.getElementById("out").innerText = "Fetching " + maxRepetitions + " random songs, see console output";
-			  
+
 					for (var i = 0; i < maxRepetitions; ++i) {
-				  		// Randomly choose a song from the available songs
-				  		const randomSongIndex = Math.floor(Math.random() * songs.length);
+						// Randomly choose a song from the available songs
+						const randomSongIndex = Math.floor(Math.random() * songs.length);
 						const randomSong = songs[randomSongIndex];
-				  		console.log("Fetching random song: " + randomSong);
-			  
-				  		// Fetch the song using the randomly chosen index
-						fetch("/songs/" + randomSong, { cache: 'no-cache' });
+						console.log("Fetching random song: " + randomSong);
+
+						// Fetch the song using the randomly chosen index
+						fetch("/song/" + randomSong, { cache: 'no-cache' });
+					}
 				}
-			  }
-			  
 			</script>
 		</head>
 		<body>
@@ -188,6 +197,12 @@ function sendResponse(res, html, cachedResult) {
 				<li>Using ${memcachedServers.length} memcached Servers: ${memcachedServers}</li>
 				<li>Cached result: ${cachedResult}</li>
 			</ul>
+			<script>
+				function openSongPage(song) {
+					window.location.href = "/song/" + encodeURIComponent(song);
+				}
+				</script>
+
 		</body>
 	</html>
 	`)
@@ -227,6 +242,7 @@ async function getPopular(maxCount) {
 		.map(row => ({ song: row?.[0], count: row?.[1] }))
 }
 
+
 // Return HTML for start page
 app.get("/", (req, res) => {
 	const topX = 3;
@@ -234,9 +250,16 @@ app.get("/", (req, res) => {
 		const songs = values[0]
 		const popular = values[1]
 
-		const songsHtml = songs.result
-			.map(m => `<a href='songs/${m}'>${m}</a>`)
-			.join(", ")
+		const songsHtml = songs.result.map(m => {
+			const sanitizedM = m.replace(/\s/g, ''); // Remove whitespace characters from `m`
+			return `
+			  <div class="song-item" onclick="openSongPage('${m}')">
+				<video class="song-video" src="${sanitizedM}.mp4" type="video/mp4" muted autoplay loop></video>
+				<span class="song-title">${m}</span>
+			  </div>
+			`;
+		  }).join("\n");
+
 
 		const popularHtml = popular
 			.map(pop => `<li> <a href='songs/${pop.song}'>${pop.song}</a> (${pop.count} views) </li>`)
@@ -249,7 +272,7 @@ app.get("/", (req, res) => {
 			</p>
 			<h1>All songs</h1>
 			<p> ${songsHtml} </p>
-		`
+			`
 		sendResponse(res, html, songs.cached)
 	})
 })
@@ -272,7 +295,7 @@ async function getsong(song) {
 
 		let data = (await executeQuery(query, [song]))?.[0] // first entry
 		if (data) {
-			let result = { song: data?.[0], heading: data?.[1], description: data?.[2] }
+			let result = { title: data?.[0], link: data?.[1], band: data?.[2] }
 			console.log(`Got result=${result}, storing in cache`)
 			if (memcached)
 				await memcached.set(key, result, cacheTimeSecs);
@@ -283,9 +306,8 @@ async function getsong(song) {
 	}
 }
 
-app.get("/songs/:song", (req, res) => {
-	let song = req.params["song"]
-
+app.get("/song/:song", (req, res) => {
+	const song = req.params["song"];
 	// Send the tracking message to Kafka
 	sendTrackingMessage({
 		song,
@@ -295,14 +317,18 @@ app.get("/songs/:song", (req, res) => {
 
 	// Send reply to browser
 	getsong(song).then(data => {
-		sendResponse(res, `<h1>${data.song}</h1><p>${data.heading}</p>` +
-			data.description.split("\n").map(p => `<p>${p}</p>`).join("\n"),
-			data.cached
-		)
+		sendResponse(res, `
+			<h1>${data.band} - ${data.title}</h1>
+			<video> \
+        		<source src="${data.link}" type="video/mp4"> \
+        		Your browser does not support the video tag. \
+      		</video>
+		`, false);
 	}).catch(err => {
-		sendResponse(res, `<h1>Error</h1><p>${err}</p>`, false)
-	})
+		sendResponse(res, `<h1>Error</h1><p>${err}</p>`, false);
+	});
 });
+
 
 // -------------------------------------------------------
 // Main method

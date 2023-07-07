@@ -1,4 +1,4 @@
-#Begin: Configmap
+# Begin: Configmap
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,7 +9,7 @@ data:
 
     CREATE TABLE `songs` (
       `song` VARCHAR(30) NOT NULL,
-      `link`  VARCHAR(5000),
+      `link`  VARCHAR(500),
       `band` VARCHAR(50),
       PRIMARY KEY (`song`)
     );
@@ -20,13 +20,11 @@ data:
        PRIMARY KEY (`song`)
     );
 
-
-    INSERT INTO songs (song, link, band) VALUES ('Empty', 'https://www.youtube.com/watch?v=rWJQPeIVJIA', 'Metric');
-    INSERT INTO songs (song, link, band) VALUES ('Breezeblocks', 'https://www.youtube.com/watch?v=rVeMiVU77wo', 'alt-J');
-    INSERT INTO songs (song, link, band) VALUES ('The Adults Are Talking', 'https://www.youtube.com/watch?v=ewOPQZZn4SY', 'The Strokes');
-    INSERT INTO songs (song, link, band) VALUES ('Square Hammer', 'https://www.youtube.com/watch?v=VqoyKzgkqR4', 'Ghost');
-    INSERT INTO songs (song, link, band) VALUES ('Circle With Me', 'https://www.youtube.com/watch?v=I0WzT0OJ-E0', 'Spiritbox');
-
+    INSERT INTO songs (song, link, band) VALUES ('Doing It To Death', '/DoingItToDeath.mp4', 'The Kills');
+    INSERT INTO songs (song, link, band) VALUES ('Breezeblocks', '/Breezeblocks.mp4', 'alt-J');
+    INSERT INTO songs (song, link, band) VALUES ('The Adults Are Talking', '/TheAdultsAreTalking.mp4', 'The Strokes');
+    INSERT INTO songs (song, link, band) VALUES ('Square Hammer', '/SquareHammer.mp4', 'Ghost');
+    INSERT INTO songs (song, link, band) VALUES ('Circle With Me', '/CircleWithMe.mp4', 'Spiritbox');
 
 ---
 apiVersion: apps/v1

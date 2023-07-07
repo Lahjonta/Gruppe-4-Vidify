@@ -1,0 +1,11 @@
+.song-item {
+    display: inline-block;
+    margin: 10px;
+    width: 250px; /* Adjust the width as needed */
+    text-align: center;
+  }
+
+  .song-video {
+    width: 100%;
+    height: auto;
+  }
