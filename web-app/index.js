@@ -165,38 +165,48 @@ function sendResponse(res, html, cachedResult) {
 			<title>Vidify</title>
 			<link rel="stylesheet" href="/styles/main.css">
 			<script>
-				function fetchRandomSongs() {
-					const songs = ['Empty', 'Breezeblocks', 'The Adults Are Talking', 'Square Hammer', 'Circle With Me'];
-					const maxRepetitions = Math.floor(Math.random() * 200);
-					document.getElementById("out").innerText = "Fetching " + maxRepetitions + " random songs, see console output";
-
-					for (var i = 0; i < maxRepetitions; ++i) {
-						// Randomly choose a song from the available songs
-						const randomSongIndex = Math.floor(Math.random() * songs.length);
-						const randomSong = songs[randomSongIndex];
-						console.log("Fetching random song: " + randomSong);
-
-						// Fetch the song using the randomly chosen index
-						fetch("/song/" + randomSong, { cache: 'no-cache' });
+			function fetchRandomSongs() {
+				const songs = ['Empty', 'Breezeblocks', 'The Adults Are Talking', 'Square Hammer', 'Circle With Me'];
+				const maxRepetitions = Math.floor(Math.random() * 200);
+				document.getElementById("out").innerText = "Fetching " + maxRepetitions + " random songs, see console output";
+			
+				for (var i = 0; i < maxRepetitions; ++i) {
+					// Randomly choose a song from the available songs
+					const randomSongIndex = Math.floor(Math.random() * songs.length);
+					const randomSong = songs[randomSongIndex];
+					console.log("Fetching random song: " + randomSong);
+			
+					// Fetch the song using the randomly chosen index
+					fetch("/song/" + randomSong, { cache: 'no-cache' });
 					}
 				}
+			    // Targeting video element 
+				let clip = document.getElementById("video-clip");
+	
+				clip.addEventListener("mouseover", function (e) {
+					clip.play();
+				})
+
+				clip.addEventListener("mouseout", function (e) {
+					clip.pause();
+				});
 			</script>
 		</head>
+		<header>
+			<div class="content">
+				<hgroup>
+					<h1>Vidify</h1>
+					<p>
+						<a href="javascript: fetchRandomSongs();">Randomly fetch some songs</a>
+						<span id="out"></span>
+					</p>
+				</hgroup>
+			</div>
+			<div class="overlay"></div>
+		</header>
 		<body>
-			<h1>Vidify</h1>
-			<p>
-				<a href="javascript: fetchRandomSongs();">Randomly fetch some songs</a>
-				<span id="out"></span>
-			</p>
 			${html}
 			<hr>
-			<h2>Information about the generated page</h4>
-			<ul>
-				<li>Server: ${os.hostname()}</li>
-				<li>Date: ${new Date()}</li>
-				<li>Using ${memcachedServers.length} memcached Servers: ${memcachedServers}</li>
-				<li>Cached result: ${cachedResult}</li>
-			</ul>
 			<script>
 				function openSongPage(song) {
 					window.location.href = "/song/" + encodeURIComponent(song);
@@ -214,26 +224,29 @@ function sendResponse(res, html, cachedResult) {
 
 // Get list of songs (from cache or db)
 async function getsongs() {
-	const key = 'songs'
-	let cachedata = await getFromCache(key)
+  const key = 'songs';
+  let cachedata = await getFromCache(key);
 
-	if (cachedata) {
-		console.log(`Cache hit for key=${key}, cachedata = `, cachedata)
-		return { result: cachedata, cached: true }
-	} else {
-		console.log(`Cache miss for key=${key}, querying database`)
-		const data = await executeQuery("SELECT song FROM songs", [])
-		if (data) {
-			let result = data.map(row => row?.[0])
-			console.log("Got result=", result, "storing in cache")
-			if (memcached)
-				await memcached.set(key, result, cacheTimeSecs);
-			return { result, cached: false }
-		} else {
-			throw "No songs data found"
-		}
-	}
+  if (cachedata) {
+    console.log(`Cache hit for key=${key}, cachedata = `, cachedata);
+    return { result: cachedata, cached: true };
+  } else {
+    console.log(`Cache miss for key=${key}, querying database`);
+    const query = "SELECT song, band FROM songs"; // Update the SQL query
+
+    const data = await executeQuery(query, []);
+    if (data) {
+      let result = data.map(row => ({ song: row[0], band: row[1] })); // Modify the result processing logic
+      console.log("Got result=", result, "storing in cache");
+      if (memcached)
+        await memcached.set(key, result, cacheTimeSecs);
+      return { result, cached: false };
+    } else {
+      throw "No songs data found";
+    }
+  }
 }
+
 
 // Get popular songs (from db only)
 async function getPopular(maxCount) {
@@ -247,35 +260,64 @@ async function getPopular(maxCount) {
 app.get("/", (req, res) => {
 	const topX = 3;
 	Promise.all([getsongs(), getPopular(topX)]).then(values => {
-		const songs = values[0]
-		const popular = values[1]
-
-		const songsHtml = songs.result.map(m => {
-			const sanitizedM = m.replace(/\s/g, ''); // Remove whitespace characters from `m`
+	  const songs = values[0]
+	  const popular = values[1]
+  
+	  const songsHtml = `
+		<div class="songs-container">
+		  ${songs.result.map(song => {
+			const sanitizedSong = song.song.replace(/\s/g, '');
+			const videoId = `video-clip-${sanitizedSong}`;
+  
 			return `
-			  <div class="song-item" onclick="openSongPage('${m}')">
-				<video class="song-video" src="${sanitizedM}.mp4" type="video/mp4" muted autoplay loop></video>
-				<span class="song-title">${m}</span>
+			  <div class="song-container" onclick="openSongPage('${song.song}')">
+			  	<div class="song-title">${song.band} - ${song.song}</div>
+				<video class="small-video" preload="metadata" id="${videoId}" src="${sanitizedSong}.mp4#t=10" type="video/mp4" muted loop></video>
 			  </div>
 			`;
-		  }).join("\n");
-
-
-		const popularHtml = popular
-			.map(pop => `<li> <a href='songs/${pop.song}'>${pop.song}</a> (${pop.count} views) </li>`)
-			.join("\n")
-
-		const html = `
-			<h1>Top ${topX} songs</h1>		
-			<p>
-				<ol style="margin-left: 2em;"> ${popularHtml} </ol> 
-			</p>
-			<h1>All songs</h1>
-			<p> ${songsHtml} </p>
-			`
-		sendResponse(res, html, songs.cached)
-	})
-})
+		  }).join('')}
+		</div>
+	  `;
+  
+	  const popularHtml = popular
+		.map(pop => `<li><a href='songs/${pop.song}'>${pop.song}</a> (${pop.count} views)</li>`)
+		.join("\n");
+  
+	  const html = `
+		  <div class="flex-container">
+		  	<div class="flex-1">
+				<h2>Popular Songs</h2>
+				<p>
+				<ol style="margin-left: 2em;">${popularHtml}</ol>
+				</p>
+			</div>
+			<div class="flex-2">
+				<h2>Discover New Music</h2>
+				${songsHtml}
+			</div>
+			<script>
+			${songs.result.map(song => {
+				const sanitizedSong = song.song.replace(/\s/g, '');
+				const videoId = `video-clip-${sanitizedSong}`;
+	
+				return `
+				let clip${sanitizedSong} = document.getElementById("${videoId}");
+				
+				clip${sanitizedSong}.addEventListener("mouseover", function (e) {
+					clip${sanitizedSong}.play();
+				});
+				
+				clip${sanitizedSong}.addEventListener("mouseout", function (e) {
+					clip${sanitizedSong}.pause();
+				});
+				`;
+			}).join('')}
+			</script>
+		`;
+	
+		sendResponse(res, html, songs.cached);
+		});
+	});
 
 // -------------------------------------------------------
 // Get a specific song (from cache or DB)
@@ -310,24 +352,49 @@ app.get("/song/:song", (req, res) => {
 	const song = req.params["song"];
 	// Send the tracking message to Kafka
 	sendTrackingMessage({
-		song,
-		timestamp: Math.floor(new Date() / 1000)
-	}).then(() => console.log(`Sent song=${song} to kafka topic=${options.kafkaTopicTracking}`))
-		.catch(e => console.log("Error sending to kafka", e))
-
+	  song,
+	  timestamp: Math.floor(new Date() / 1000)
+	})
+	  .then(() =>
+		console.log(
+		  `Sent song=${song} to kafka topic=${options.kafkaTopicTracking}`
+		)
+	  )
+	  .catch(e => console.log("Error sending to kafka", e));
+  
 	// Send reply to browser
-	getsong(song).then(data => {
-		sendResponse(res, `
-			<h1>${data.band} - ${data.title}</h1>
-			<video> \
-        		<source src="${data.link}" type="video/mp4"> \
-        		Your browser does not support the video tag. \
-      		</video>
-		`, false);
-	}).catch(err => {
+	getsong(song)
+	  .then(data => {
+		const videoId = `video-clip-${song.replace(/\W+/g, "_")}`;
+  
+		sendResponse(
+		  res,
+		  `
+			<div class="full-song-container">
+			  <h1>${data.band} - ${data.title}</h1>
+			  <div class="video-wrapper">
+				<video
+				  id="${videoId}"
+				  class="full-video"
+				  controls
+				  autoplay
+				>
+				  <source src="${data.link}" type="video/mp4" />
+				  Your browser does not support the video tag.
+				</video>
+				<div onclick="toggleVideo('${videoId}')">
+				  <i class="fas fa-play"></i>
+				</div>
+			  </div>
+			</div>
+		  `,
+		  false
+		);
+	  })
+	  .catch(err => {
 		sendResponse(res, `<h1>Error</h1><p>${err}</p>`, false);
-	});
-});
+	  });
+  });
 
 
 // -------------------------------------------------------
