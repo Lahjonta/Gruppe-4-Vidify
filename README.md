@@ -1,5 +1,12 @@
 # Use Case: Most Streamed Songs on Video Streaming App Vidify
 
+This project has been created by (Student-IDs of DHBW Mannheim):
+
+- 7013900
+- 9147121
+- 6870324
+- 1620893
+
 ## Apache License
 ```
 Copyright 2023 BD-Vidify
