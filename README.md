@@ -51,7 +51,7 @@ helm upgrade --install my-hadoop-cluster pfisterer-hadoop/hadoop --namespace=def
 
 1. Start Docker App
 
-2. In Terminal: `minikube start` (Please make sure to provide minikube with sufficient memory - e.g. 6-8GB)
+2. In Terminal: `minikube start` (Please make sure to provide minikube with sufficient memory (e.g. 7-8GB)
 
 ## Deploy
 
