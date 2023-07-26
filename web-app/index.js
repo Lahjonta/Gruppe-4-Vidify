@@ -166,7 +166,7 @@ function sendResponse(res, html, cachedResult) {
 			<link rel="stylesheet" href="/styles/main.css">
 			<script>
 			function fetchRandomSongs() {
-				const songs = ['Empty', 'Breezeblocks', 'The Adults Are Talking', 'Square Hammer', 'Circle With Me'];
+				const songs = ['Breezeblocks', 'The Adults Are Talking', 'Square Hammer', 'Doing It To Death', 'Circle With Me'];
 				const maxRepetitions = Math.floor(Math.random() * 200);
 				document.getElementById("out").innerText = "Fetching " + maxRepetitions + " random songs, see console output";
 			
