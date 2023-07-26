@@ -40,6 +40,13 @@ helm repo add pfisterer-hadoop https://pfisterer.github.io/apache-hadoop-helm/
 helm upgrade --install my-hadoop-cluster pfisterer-hadoop/hadoop --namespace=default --set hdfs.dataNode.replicas=1 --set yarn.nodeManager.replicas=1 --set hdfs.webhdfs.enabled=true
 ```
 
+## Before Deploying
+
+Start Docker App
+In Terminal: `minikube start`
+
 ## Deploy
 
 To develop using [Skaffold](https://skaffold.dev/), use `skaffold dev`.
+
+After deploying: `minikube tunnel`to access node.js app on localhost
