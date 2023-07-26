@@ -41,10 +41,10 @@ helm upgrade --install my-hadoop-cluster pfisterer-hadoop/hadoop --namespace=def
 ```
 
 ## Before Deploying
-
+```
 Start Docker App
 In Terminal: `minikube start`
-
+```
 ## Deploy
 
 To develop using [Skaffold](https://skaffold.dev/), use `skaffold dev`.
